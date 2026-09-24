@@ -184,14 +184,14 @@ export const EmailTable: React.FC<EmailTableProps> = ({
                         </span>
                         {type === 'sent' && email.status === 'SENT' && (
                           <a
-                            href="https://ethereal.email/messages"
+                            href={email.previewUrl || 'https://ethereal.email/messages'}
                             target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center space-x-0.5 text-[11px] text-indigo-600 hover:text-indigo-800 font-medium"
-                            title="Inspect in Ethereal mailbox"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 border border-indigo-200 transition-colors"
+                            title={email.previewUrl ? 'Open rendered email in Ethereal' : 'Inspect in Ethereal mailbox'}
                           >
-                            <span>Ethereal</span>
-                            <ExternalLink className="w-2.5 h-2.5" />
+                            <span>View on Ethereal</span>
+                            <ExternalLink className="w-3 h-3" />
                           </a>
                         )}
                       </div>

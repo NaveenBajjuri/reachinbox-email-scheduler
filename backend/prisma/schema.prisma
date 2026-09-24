@@ -39,6 +39,7 @@ model Email {
   sentAt       DateTime?
   status       EmailStatus @default(SCHEDULED)
   attempts     Int         @default(0)
+  previewUrl   String?     @db.Text
   errorMessage String?     @db.Text
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

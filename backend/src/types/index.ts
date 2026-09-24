@@ -24,6 +24,7 @@ export interface EmailDTO {
   sentAt: string | null;
   status: EmailStatus;
   attempts: number;
+  previewUrl: string | null;
   errorMessage: string | null;
   createdAt: string;
   updatedAt: string;

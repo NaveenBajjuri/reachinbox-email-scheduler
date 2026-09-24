@@ -82,6 +82,7 @@ export async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
       data: {
         status: EmailStatus.SENT,
         sentAt: new Date(),
+        previewUrl: result.previewUrl ? result.previewUrl.toString() : null,
         errorMessage: null,
       },
     });
