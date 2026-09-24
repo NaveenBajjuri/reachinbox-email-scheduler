@@ -16,8 +16,6 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   onSchedule,
   defaultSender,
 }) => {
-  if (!isOpen) return null;
-
   // Form states
   const [sender, setSender] = useState(defaultSender || 'scheduler@reachinbox.ai');
   const [subject, setSubject] = useState('');
@@ -29,12 +27,10 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
     totalParsed: 0,
   });
 
-  // Scheduling timing states
-  // Default to 1 minute in the future
-  const defaultStartTime = new Date(Date.now() + 60 * 1000)
-    .toISOString()
-    .slice(0, 16);
-  const [startTime, setStartTime] = useState(defaultStartTime);
+  // Scheduling timing states: default to 1 minute in the future
+  const [startTime, setStartTime] = useState(() =>
+    new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16)
+  );
   const [delaySeconds, setDelaySeconds] = useState(2);
   const [hourlyLimit, setHourlyLimit] = useState(100);
 
@@ -106,6 +102,8 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
