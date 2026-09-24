@@ -93,8 +93,8 @@ if (process.env.RUN_WORKER !== 'false' && process.env.NODE_ENV !== 'test') {
 
 let server: any = null;
 if (process.env.NODE_ENV !== 'test') {
-  server = app.listen(env.PORT, () => {
-    logger.info(`ReachInbox Email Scheduler Backend running on http://localhost:${env.PORT}`);
+  server = app.listen(env.PORT, '0.0.0.0', () => {
+    logger.info(`ReachInbox Email Scheduler Backend running on http://0.0.0.0:${env.PORT}`);
     logger.info(`Environment: ${env.NODE_ENV}`);
   });
 
