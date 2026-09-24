@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import app from '../index.js';
 import { db } from '../db/client.js';
-import { redisConnection } from '../queue/queue.js';
+import { redisConnection, emailQueue } from '../queue/queue.js';
 
 describe('API & Scheduler Integration Tests', () => {
   let authToken: string;
@@ -141,5 +141,10 @@ describe('API & Scheduler Integration Tests', () => {
     await db.email.deleteMany({
       where: { userId, subject: 'High Volume Batch Test' },
     });
+    try {
+      await emailQueue.drain(true);
+    } catch {
+      // ignore
+    }
   });
 });

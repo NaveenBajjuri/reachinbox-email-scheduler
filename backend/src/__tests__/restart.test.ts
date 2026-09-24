@@ -10,6 +10,13 @@ describe('Server/Worker Restart Persistence Verification', () => {
   let testUserId: string;
 
   beforeAll(async () => {
+    // Drain any leftover jobs from previous tests
+    try {
+      await emailQueue.drain(true);
+    } catch {
+      // ignore
+    }
+
     const user = await db.user.create({
       data: {
         googleId: `restart-user-${Date.now()}`,

@@ -25,9 +25,11 @@ data/
 logs/
 *.log
 
-# OS & Editor Files
-.DS_Store
-Thumbs.db
+# Archives and Reference Folders
+REACHINBOX-EMAIL-SCHEDULER*
+reachinbox-email-scheduler*
+*.zip
+*.tar.gz
 .vscode/
 .idea/
 *.suo
