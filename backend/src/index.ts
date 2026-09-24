@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import path from 'path';
+import fs from 'fs';
 import { env } from './config/env.js';
 import { db } from './db/client.js';
 import { redisConnection } from './queue/queue.js';
@@ -56,6 +58,19 @@ app.get('/health', async (req: Request, res: Response) => {
 // Mount Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/emails', scheduleRoutes);
+
+if (env.NODE_ENV === 'production') {
+  const rootDist = path.resolve(process.cwd(), 'frontend/dist');
+  const relDist = path.resolve(process.cwd(), '../frontend/dist');
+  const clientDist = fs.existsSync(rootDist) ? rootDist : relDist;
+
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    app.get('*', (req: Request, res: Response) => {
+      res.sendFile(path.resolve(clientDist, 'index.html'));
+    });
+  }
+}
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

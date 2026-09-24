@@ -7,18 +7,24 @@ import { logger } from '../utils/logger.js';
 export const EMAIL_QUEUE_NAME = process.env.EMAIL_QUEUE_NAME || 'email-queue';
 
 export function createRedisConnection(): Redis {
-  const redis = new Redis({
-    host: env.REDIS_HOST,
-    port: env.REDIS_PORT,
-    password: env.REDIS_PASSWORD || undefined,
-    maxRetriesPerRequest: null, // Required by BullMQ
+  const options = {
+    maxRetriesPerRequest: null,
     enableReadyCheck: false,
-    retryStrategy(times) {
+    retryStrategy(times: number) {
       const delay = Math.min(times * 100, 3000);
       logger.warn(`Redis connection retry attempt ${times}, delaying ${delay}ms`);
       return delay;
     },
-  });
+  };
+
+  const redis = env.REDIS_URL
+    ? new Redis(env.REDIS_URL, options)
+    : new Redis({
+        host: env.REDIS_HOST,
+        port: env.REDIS_PORT,
+        password: env.REDIS_PASSWORD || undefined,
+        ...options,
+      });
 
   redis.on('error', (err) => {
     logger.error('Redis connection error:', { message: err.message });
