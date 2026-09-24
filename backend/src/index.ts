@@ -76,41 +76,43 @@ if (process.env.RUN_WORKER !== 'false' && process.env.NODE_ENV !== 'test') {
   worker = createWorker();
 }
 
-// Start Server
-const server = app.listen(env.PORT, () => {
-  logger.info(`ReachInbox Email Scheduler Backend running on http://localhost:${env.PORT}`);
-  logger.info(`Environment: ${env.NODE_ENV}`);
-});
-
-// Graceful Shutdown
-async function handleShutdown(signal: string) {
-  logger.info(`Received ${signal}. Starting graceful shutdown...`);
-
-  server.close(async () => {
-    logger.info('HTTP server closed');
-
-    if (worker) {
-      await worker.close();
-      logger.info('BullMQ worker closed');
-    }
-
-    await redisConnection.quit();
-    logger.info('Redis connection closed');
-
-    await db.$disconnect();
-    logger.info('Database connection closed');
-
-    process.exit(0);
+let server: any = null;
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(env.PORT, () => {
+    logger.info(`ReachInbox Email Scheduler Backend running on http://localhost:${env.PORT}`);
+    logger.info(`Environment: ${env.NODE_ENV}`);
   });
 
-  // Force close after 10s if stuck
-  setTimeout(() => {
-    logger.error('Forced shutdown after timeout');
-    process.exit(1);
-  }, 10000);
-}
+  const handleShutdown = async (signal: string) => {
+    logger.info(`Received ${signal}. Starting graceful shutdown...`);
 
-process.on('SIGTERM', () => handleShutdown('SIGTERM'));
-process.on('SIGINT', () => handleShutdown('SIGINT'));
+    if (server) {
+      server.close(async () => {
+        logger.info('HTTP server closed');
+
+        if (worker) {
+          await worker.close();
+          logger.info('BullMQ worker closed');
+        }
+
+        await redisConnection.quit();
+        logger.info('Redis connection closed');
+
+        await db.$disconnect();
+        logger.info('Database connection closed');
+
+        process.exit(0);
+      });
+    }
+
+    setTimeout(() => {
+      logger.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+  process.on('SIGINT', () => handleShutdown('SIGINT'));
+}
 
 export default app;

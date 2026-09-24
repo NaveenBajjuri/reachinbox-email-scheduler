@@ -18,21 +18,17 @@ function getOAuth2Client(): OAuth2Client {
   );
 }
 
-/**
- * GET /api/auth/google
- * Initiates the Google OAuth 2.0 authorization redirect.
- */
 router.get('/google', (req: Request, res: Response) => {
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
     res.status(503).json({
       success: false,
-      error: 'Google OAuth is not configured on this server. Please provide GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file.',
+      error: 'Google OAuth credentials missing in configuration',
     });
     return;
   }
 
-  const oauth2Client = getOAuth2Client();
-  const authorizeUrl = oauth2Client.generateAuthUrl({
+  const client = getOAuth2Client();
+  const url = client.generateAuthUrl({
     access_type: 'offline',
     scope: [
       'https://www.googleapis.com/auth/userinfo.profile',
@@ -41,47 +37,42 @@ router.get('/google', (req: Request, res: Response) => {
     prompt: 'consent',
   });
 
-  res.redirect(authorizeUrl);
+  res.redirect(url);
 });
 
-/**
- * GET /api/auth/google/callback
- * Handles the redirect from Google with the authorization code.
- */
 router.get('/google/callback', async (req: Request, res: Response) => {
   const { code, error } = req.query;
 
   if (error) {
-    logger.warn('Google OAuth denied or failed:', { error });
+    logger.warn('Google auth denied:', { error });
     res.redirect(`${env.FRONTEND_URL}/login?error=${encodeURIComponent(String(error))}`);
     return;
   }
 
   if (!code || typeof code !== 'string') {
-    res.status(400).json({ success: false, error: 'Missing authorization code' });
+    res.status(400).json({ success: false, error: 'Missing auth code' });
     return;
   }
 
   try {
-    const oauth2Client = getOAuth2Client();
-    const { tokens } = await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
+    const client = getOAuth2Client();
+    const { tokens } = await client.getToken(code);
+    client.setCredentials(tokens);
 
     if (!tokens.id_token) {
-      throw new Error('No id_token received from Google OAuth exchange');
+      throw new Error('Missing id_token from Google exchange');
     }
 
-    const ticket = await oauth2Client.verifyIdToken({
+    const ticket = await client.verifyIdToken({
       idToken: tokens.id_token,
       audience: env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
-    if (!payload || !payload.email || !payload.sub) {
-      throw new Error('Invalid user payload from Google ID token');
+    if (!payload?.email || !payload?.sub) {
+      throw new Error('Invalid Google payload');
     }
 
-    // Persist or update user in PostgreSQL
     const user = await db.user.upsert({
       where: { googleId: payload.sub },
       update: {
@@ -97,12 +88,10 @@ router.get('/google/callback', async (req: Request, res: Response) => {
       },
     });
 
-    // Create session token
     const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, {
       expiresIn: '7d',
     });
 
-    // Set secure cookie
     res.cookie('token', token, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
@@ -110,39 +99,22 @@ router.get('/google/callback', async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    logger.info(`User authenticated successfully via Google OAuth: ${user.email} (${user.id})`);
     res.redirect(`${env.FRONTEND_URL}/dashboard`);
   } catch (err: any) {
-    logger.error('Google OAuth callback exchange failed:', { error: err.message });
-    res.redirect(`${env.FRONTEND_URL}/login?error=oauth_exchange_failed`);
+    logger.error('OAuth callback failed:', { error: err.message });
+    res.redirect(`${env.FRONTEND_URL}/login?error=oauth_failed`);
   }
 });
 
-/**
- * GET /api/auth/me
- * Returns authenticated user details for header/profile.
- */
 router.get('/me', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-  res.json({
-    success: true,
-    user: req.user,
-  });
+  res.json({ success: true, user: req.user });
 });
 
-/**
- * POST /api/auth/logout
- * Clears authentication session.
- */
 router.post('/logout', (req: Request, res: Response) => {
   res.clearCookie('token');
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
-/**
- * Development & Testing Helper: Dev Login
- * Enables automated integration tests and local development testing without
- * needing a manual interactive browser session.
- */
 const devLoginSchema = z.object({
   email: z.string().email(),
   name: z.string().optional().default('Dev Tester'),
@@ -154,12 +126,12 @@ router.post(
   validateBody(devLoginSchema),
   async (req: Request, res: Response) => {
     if (env.NODE_ENV === 'production') {
-      res.status(403).json({ success: false, error: 'Dev login disabled in production' });
+      res.status(403).json({ success: false, error: 'Disabled in production' });
       return;
     }
 
     const { email, name, avatarUrl } = req.body;
-    const googleId = `dev-google-id-${email}`;
+    const googleId = `dev-user-${email}`;
 
     const user = await db.user.upsert({
       where: { googleId },

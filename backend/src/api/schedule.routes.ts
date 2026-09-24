@@ -9,7 +9,6 @@ import { logger } from '../utils/logger.js';
 
 const router = Router();
 
-// Validation Schemas
 const scheduleSchema = z.object({
   subject: z.string().min(1, 'Subject cannot be empty').max(255),
   body: z.string().min(1, 'Email body cannot be empty'),
@@ -29,10 +28,6 @@ const paginationQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-/**
- * POST /api/emails/schedule
- * Validates request, creates DB records, and enqueues BullMQ delayed jobs
- */
 router.post(
   '/schedule',
   requireAuth,
@@ -46,16 +41,12 @@ router.post(
       logger.error('Failed to schedule emails:', { error: error.message });
       res.status(500).json({
         success: false,
-        error: 'Failed to schedule emails. Please check your input and try again.',
+        error: 'Failed to schedule emails',
       });
     }
   }
 );
 
-/**
- * GET /api/emails/scheduled
- * Lists scheduled and in-processing emails for the authenticated user
- */
 router.get(
   '/scheduled',
   requireAuth,
@@ -96,10 +87,6 @@ router.get(
   }
 );
 
-/**
- * GET /api/emails/sent
- * Lists sent and failed emails for the authenticated user
- */
 router.get(
   '/sent',
   requireAuth,
@@ -140,10 +127,6 @@ router.get(
   }
 );
 
-/**
- * GET /api/emails/:id
- * Fetches a single email by ID
- */
 router.get(
   '/:id',
   requireAuth,

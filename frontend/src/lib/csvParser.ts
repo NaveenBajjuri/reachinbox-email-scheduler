@@ -2,10 +2,7 @@ import type { LeadParseResult } from '../types/email';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-/**
- * Safely parses raw text or CSV file content into verified email addresses.
- * Filters out headers, empty lines, and malformed rows while preventing duplicates.
- */
+// Parses raw text or CSV content into unique valid email addresses
 export function parseLeads(rawText: string): LeadParseResult {
   if (!rawText || typeof rawText !== 'string') {
     return { validEmails: [], invalidCount: 0, totalParsed: 0 };

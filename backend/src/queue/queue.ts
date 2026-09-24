@@ -4,7 +4,7 @@ import { env } from '../config/env.js';
 import { EmailJobData } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 
-export const EMAIL_QUEUE_NAME = 'email-queue';
+export const EMAIL_QUEUE_NAME = process.env.EMAIL_QUEUE_NAME || 'email-queue';
 
 export function createRedisConnection(): Redis {
   const redis = new Redis({

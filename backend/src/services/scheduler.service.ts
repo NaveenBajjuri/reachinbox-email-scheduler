@@ -18,17 +18,13 @@ export async function scheduleEmails(
     delayBetweenEmails = 0,
   } = request;
 
-  const baseStartTimeMs = new Date(startTime).getTime();
-  const nowMs = Date.now();
+  const startMs = new Date(startTime).getTime();
+  const now = Date.now();
 
-  logger.info(`Scheduling batch of ${recipients.length} emails for user ${userId}`);
-
-  // 1. Prepare DB records with pre-generated UUIDs
-  // This allows lightning-fast bulk insertion while retaining exact IDs for BullMQ jobs
-  const emailRecords = recipients.map((recipient, index) => {
+  const records = recipients.map((recipient, i) => {
     const id = randomUUID();
-    const sendAtMs = baseStartTimeMs + index * delayBetweenEmails;
-    const scheduledAt = new Date(Math.max(nowMs, sendAtMs));
+    const scheduledMs = startMs + i * delayBetweenEmails;
+    const scheduledAt = new Date(Math.max(now, scheduledMs));
 
     return {
       id,
@@ -44,45 +40,33 @@ export async function scheduleEmails(
     };
   });
 
-  // 2. Perform bulk insertion into PostgreSQL
-  // Single database round-trip even for 1000+ items
-  await db.email.createMany({
-    data: emailRecords,
-  });
+  await db.email.createMany({ data: records });
 
-  logger.info(`Persisted ${emailRecords.length} email records in PostgreSQL`);
-
-  // 3. Prepare BullMQ delayed jobs with deterministic job IDs (jobId = email.id)
-  const jobsToEnqueue = emailRecords.map((record) => {
-    const targetSendTimeMs = record.scheduledAt.getTime();
-    const delay = Math.max(0, targetSendTimeMs - Date.now());
+  const jobs = records.map((record) => {
+    const delay = Math.max(0, record.scheduledAt.getTime() - Date.now());
 
     return {
       name: 'send-email',
-      data: {
-        emailId: record.id,
-      },
+      data: { emailId: record.id },
       opts: {
         delay,
-        jobId: record.id, // Natural idempotency key: BullMQ rejects duplicates with the same jobId
+        jobId: record.id,
       },
     };
   });
 
-  // 4. Batch enqueue into Redis using BullMQ's addBulk (single pipeline)
-  // Ensures the API remains responsive within milliseconds even under heavy batch loads
-  const CHUNK_SIZE = 500;
-  for (let i = 0; i < jobsToEnqueue.length; i += CHUNK_SIZE) {
-    const chunk = jobsToEnqueue.slice(i, i + CHUNK_SIZE);
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
+    const chunk = jobs.slice(i, i + BATCH_SIZE);
     await emailQueue.addBulk(chunk);
   }
 
-  logger.info(`Enqueued ${jobsToEnqueue.length} delayed jobs in BullMQ`);
+  logger.info(`Scheduled ${records.length} emails for user ${userId}`);
 
   return {
     success: true,
-    scheduledCount: emailRecords.length,
-    message: `Successfully scheduled ${emailRecords.length} email(s)`,
-    emailIds: emailRecords.map((r) => r.id),
+    scheduledCount: records.length,
+    message: `Successfully scheduled ${records.length} email(s)`,
+    emailIds: records.map((r) => r.id),
   };
 }
