@@ -36,4 +36,4 @@ COPY --from=builder /app/frontend/dist ./frontend/dist
 
 EXPOSE 5000
 
-CMD ["sh", "-c", "npx prisma db push --schema=backend/prisma/schema.prisma && node backend/dist/index.js"]
+CMD ["sh", "-c", "npx prisma db push --schema=backend/prisma/schema.prisma --accept-data-loss && node backend/dist/index.js"]

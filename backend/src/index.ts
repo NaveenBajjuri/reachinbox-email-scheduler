@@ -76,12 +76,12 @@ if (env.NODE_ENV === 'production') {
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   logger.error('Unhandled server error:', {
     message: err.message,
-    stack: env.NODE_ENV === 'development' ? err.stack : undefined,
+    stack: err.stack,
   });
 
   res.status(500).json({
     success: false,
-    error: 'An internal server error occurred',
+    error: err.message || 'An internal server error occurred',
   });
 });
 
