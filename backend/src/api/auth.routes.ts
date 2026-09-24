@@ -125,38 +125,58 @@ router.post(
   '/dev-login',
   validateBody(devLoginSchema),
   async (req: Request, res: Response) => {
-    const { email, name, avatarUrl } = req.body;
-    const googleId = `dev-user-${email}`;
+    try {
+      const { email, name, avatarUrl } = req.body;
+      const normalizedEmail = email.trim().toLowerCase();
+      const googleId = `dev-user-${normalizedEmail}`;
 
-    const user = await db.user.upsert({
-      where: { googleId },
-      update: { name, email, avatarUrl },
-      create: { googleId, name, email, avatarUrl },
-    });
+      let user = await db.user.findUnique({ where: { email: normalizedEmail } });
+      if (user) {
+        user = await db.user.update({
+          where: { id: user.id },
+          data: {
+            name: name || user.name,
+            avatarUrl: avatarUrl || user.avatarUrl,
+          },
+        });
+      } else {
+        user = await db.user.create({
+          data: {
+            googleId,
+            name: name || 'Demo User',
+            email: normalizedEmail,
+            avatarUrl,
+          },
+        });
+      }
 
-    const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
+      const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, {
+        expiresIn: '7d',
+      });
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
 
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        googleId: user.googleId,
-        name: user.name,
-        email: user.email,
-        avatarUrl: user.avatarUrl,
-        createdAt: user.createdAt.toISOString(),
-      },
-    });
+      res.json({
+        success: true,
+        token,
+        user: {
+          id: user.id,
+          googleId: user.googleId,
+          name: user.name,
+          email: user.email,
+          avatarUrl: user.avatarUrl,
+          createdAt: user.createdAt.toISOString(),
+        },
+      });
+    } catch (err: any) {
+      logger.error('Dev-login failed:', { error: err.message, stack: err.stack });
+      res.status(500).json({ success: false, error: err.message || 'Login failed' });
+    }
   }
 );
 
