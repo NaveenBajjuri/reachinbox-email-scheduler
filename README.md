@@ -363,3 +363,25 @@ Frontend Suites:
    As documented in our Idempotency section, distributed systems sending external side-effects (SMTP) cannot achieve mathematical exactly-once delivery without provider-level idempotency keys. Our atomic claim pattern guarantees at-most-once concurrent processing and prevents duplicate internal worker execution.
 3. **UTC Window Granularity**:
    Hourly rate limits are keyed by discrete UTC hour buckets (`rate:{sender}:YYYY-MM-DDTHH`). This provides atomic, deterministic bucket boundaries with clean `EXPIRE` garbage collection in Redis.
+
+---
+
+## Submission Guidelines & Reviewer Access
+
+1. **Private Repository Setup**:
+   - Push this monorepo to a private GitHub repository.
+   - Go to **Settings > Collaborators** and invite the designated reviewers:
+     - **`Mitrajit`**
+     - **`Yadav036`**
+2. **Video Demo (Max 5 Minutes)**:
+   - Follow the step-by-step cue sheet in [`DEMO_SCRIPT.md`](./DEMO_SCRIPT.md).
+   - Ensure you demonstrate:
+     - Google OAuth login & dashboard.
+     - Scheduling a batch with inter-email delay and CSV lead parsing.
+     - **The Server Restart scenario**: Kill the server while jobs are queued, wait, restart, and demonstrate jobs delivering on time.
+     - Inspection of the **Sent Emails** tab and Ethereal preview links.
+3. **Submission Forms**:
+   - Submit the repository link and video demo URL to:
+     - Company Portal: [Notion Submission Page](https://sumptuous-word-80f.notion.site/Software-Development-Intern-Assignment-2bc1596f45e88080995cec1180a2bc60)
+     - NxtWave Portal: [Google Form](https://forms.gle/9Wo4LkR4RFZMGsS68)
+
