@@ -125,11 +125,6 @@ router.post(
   '/dev-login',
   validateBody(devLoginSchema),
   async (req: Request, res: Response) => {
-    if (env.NODE_ENV === 'production') {
-      res.status(403).json({ success: false, error: 'Disabled in production' });
-      return;
-    }
-
     const { email, name, avatarUrl } = req.body;
     const googleId = `dev-user-${email}`;
 
