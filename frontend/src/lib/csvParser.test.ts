@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseLeads } from './csvParser';
+import { parseLeads, parseRows } from './csvParser';
 
 describe('CSV & Text Lead Parser', () => {
   it('parses clean line-separated email addresses', () => {
@@ -60,4 +60,19 @@ bob@example.com,Bob Jones,Manager`;
     expect(result.invalidCount).toBe(0);
     expect(result.totalParsed).toBe(0);
   });
+
+  it('correctly parses Excel rows matrix with headers and multiple columns', () => {
+    const excelRows = [
+      ['Name', 'Email Address', 'Company'],
+      ['Alice Smith', 'alice@company.com', 'Acme Corp'],
+      ['Bob Jones', 'bob@reachinbox.ai', 'ReachInbox'],
+      ['Invalid Person', 'not-an-email', 'None'],
+    ];
+
+    const result = parseRows(excelRows);
+    expect(result.validEmails).toEqual(['alice@company.com', 'bob@reachinbox.ai']);
+    expect(result.invalidCount).toBe(1);
+    expect(result.totalParsed).toBe(3);
+  });
 });
+

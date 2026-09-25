@@ -17,10 +17,6 @@ export function parseLeads(rawText: string): LeadParseResult {
     const rawLine = lines[i].trim();
     if (!rawLine) continue; // Skip completely empty lines
 
-    totalProcessed++;
-
-    // Check if line is a CSV row with multiple columns (e.g., email,name,company)
-    // Extract first cell or scan columns for an email address
     const cells = rawLine.split(/[,;\t]/).map((c) => c.replace(/["']/g, '').trim());
 
     // Skip common CSV header rows
@@ -30,6 +26,8 @@ export function parseLeads(rawText: string): LeadParseResult {
     ) {
       continue;
     }
+
+    totalProcessed++;
 
     let foundEmail = false;
     for (const cell of cells) {
@@ -51,3 +49,59 @@ export function parseLeads(rawText: string): LeadParseResult {
     totalParsed: totalProcessed,
   };
 }
+
+// Parses matrix of rows/cells (e.g. from Excel spreadsheets) into unique valid email addresses
+export function parseRows(rows: any[][]): LeadParseResult {
+  if (!rows || !Array.isArray(rows) || rows.length === 0) {
+    return { validEmails: [], invalidCount: 0, totalParsed: 0 };
+  }
+
+  const validEmailSet = new Set<string>();
+  let invalidCount = 0;
+  let totalProcessed = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || !Array.isArray(row) || row.length === 0) continue;
+
+    const cells = row
+      .filter((cell) => cell !== null && cell !== undefined)
+      .map((cell) => String(cell).trim())
+      .filter((cell) => cell.length > 0);
+
+    if (cells.length === 0) continue;
+
+    // Skip common header row if present
+    if (
+      i === 0 &&
+      cells.some((cell) =>
+        ['email', 'email address', 'emails', 'recipient', 'contact', 'leads', 'name'].includes(cell.toLowerCase())
+      ) &&
+      !cells.some((cell) => EMAIL_REGEX.test(cell))
+    ) {
+      continue;
+    }
+
+    totalProcessed++;
+
+    let foundEmail = false;
+    for (const cell of cells) {
+      if (EMAIL_REGEX.test(cell)) {
+        validEmailSet.add(cell.toLowerCase());
+        foundEmail = true;
+        break;
+      }
+    }
+
+    if (!foundEmail) {
+      invalidCount++;
+    }
+  }
+
+  return {
+    validEmails: Array.from(validEmailSet),
+    invalidCount,
+    totalParsed: totalProcessed,
+  };
+}
+

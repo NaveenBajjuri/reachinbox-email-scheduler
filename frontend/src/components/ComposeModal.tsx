@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, CheckCircle2, AlertCircle, Calendar, Clock, Gauge, Loader2 } from 'lucide-react';
+import readXlsxFile from 'read-excel-file/browser';
 import type { ScheduleEmailPayload, LeadParseResult } from '../types/email';
-import { parseLeads } from '../lib/csvParser';
+import { parseLeads, parseRows } from '../lib/csvParser';
 
 interface ComposeModalProps {
   isOpen: boolean;
@@ -43,14 +44,39 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
     setParseResult(parsed);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setErrorMessage(null);
+    const extension = file.name.split('.').pop()?.toLowerCase();
+
+    if (extension === 'xlsx' || extension === 'xls') {
+      try {
+        const sheets = await readXlsxFile(file);
+        const allRows = sheets.flatMap((s) => s.data);
+        const parsed = parseRows(allRows);
+        setParseResult(parsed);
+        setRawLeadText(parsed.validEmails.join('\n'));
+      } catch (err: any) {
+        setErrorMessage(
+          'Failed to read Excel file. Please ensure it is a valid .xlsx or .csv spreadsheet.'
+        );
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
       handleLeadTextChange(content);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.onerror = () => {
+      setErrorMessage('Failed to read uploaded file.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
   };
@@ -159,7 +185,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-slate-700">
-                Recipients (CSV or manual)
+                Recipients (CSV, Excel, or manual)
               </label>
               <button
                 type="button"
@@ -167,12 +193,12 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
                 className="inline-flex items-center space-x-1 text-xs text-indigo-600 hover:text-indigo-700 font-semibold cursor-pointer"
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span>Upload CSV</span>
+                <span>Upload CSV / Excel</span>
               </button>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,.txt"
+                accept=".csv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                 onChange={handleFileUpload}
                 className="hidden"
               />
@@ -182,7 +208,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
               rows={4}
               value={rawLeadText}
               onChange={(e) => handleLeadTextChange(e.target.value)}
-              placeholder="paste emails line-by-line or comma-separated"
+              placeholder="paste emails line-by-line, comma-separated, or upload CSV / Excel file"
               className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-600"
             />
 

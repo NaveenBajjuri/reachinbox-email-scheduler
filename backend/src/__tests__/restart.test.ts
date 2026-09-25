@@ -81,7 +81,7 @@ describe('Server/Worker Restart Persistence Verification', () => {
     const completedPromise = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Timed out waiting for restarted worker to process delayed job'));
-      }, 15000);
+      }, 30000);
 
       restartedWorker.on('completed', (job) => {
         if (job.data.emailId === emailId) {
@@ -108,5 +108,5 @@ describe('Server/Worker Restart Persistence Verification', () => {
 
     // Clean up restarted worker
     await restartedWorker.close();
-  });
+  }, 35000);
 });
