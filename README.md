@@ -4,6 +4,10 @@ A production-grade, distributed Full-Stack Email Job Scheduler service and dashb
 
 The system accepts email scheduling requests via a typed REST API, persists state durably in PostgreSQL, schedules jobs across customizable time intervals and hourly rate limits using **BullMQ delayed jobs (strictly zero cron)**, executes sends via **Ethereal SMTP**, and **survives complete backend/worker process restarts** without lost or duplicated sends.
 
+> 🌐 **Live Deployed App**: [https://reachinbox-email-scheduler-production-0f19.up.railway.app](https://reachinbox-email-scheduler-production-0f19.up.railway.app)  
+> 👥 **Reviewers**: `Mitrajit`, `Yadav036` (Access granted)  
+> 🔑 **Evaluation Access**: Evaluators can sign in via **Google OAuth** or use the **1-Click Quick Login** on the live demo for instant evaluation.
+
 ---
 
 ## Architecture Overview
