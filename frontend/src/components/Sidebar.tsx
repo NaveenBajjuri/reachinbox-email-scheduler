@@ -28,12 +28,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col h-screen shrink-0 sticky top-0 select-none">
-      {/* Top Brand Logo matching Figma "ONG" */}
+      {/* Top Brand Logo - ReachInbox Scheduler */}
       <div className="px-6 pt-6 pb-4">
-        <div className="flex items-center space-x-2">
-          <span className="text-2xl font-black tracking-tight text-slate-950 font-mono">
-            ONG
-          </span>
+        <div className="flex items-center space-x-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#00A854] to-emerald-400 flex items-center justify-center text-white shadow-xs shadow-emerald-200 shrink-0">
+            <Send className="w-4 h-4 -rotate-12 translate-x-0.5" />
+          </div>
+          <div>
+            <span className="text-base font-black text-slate-900 tracking-tight leading-none block">
+              ReachInbox
+            </span>
+            <span className="text-[10px] font-bold text-[#00A854] tracking-wider uppercase block mt-0.5">
+              Scheduler
+            </span>
+          </div>
         </div>
       </div>
 

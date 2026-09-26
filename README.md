@@ -6,7 +6,9 @@ The system accepts email scheduling requests via a typed REST API, persists stat
 
 > 🌐 **Live Deployed App**: [https://reachinbox-email-scheduler-production-0f19.up.railway.app](https://reachinbox-email-scheduler-production-0f19.up.railway.app)  
 > 👥 **Reviewers**: `Mitrajit`, `Yadav036` (Access granted)  
-> 🔑 **Evaluation Access**: Evaluators can sign in via **Google OAuth** or use the **1-Click Quick Login** on the live demo for instant evaluation.
+> 🔑 **Evaluation Access / Login Credentials**:
+> - **Google OAuth**: Click **"Login with Google"** to authenticate via your Google account.
+> - **Direct Email Login**: Enter any email address (e.g. `oliver.brown@domain.io` or `evaluator@reachinbox.ai`) and password (e.g. `password123`) to immediately open an authenticated session.
 
 ---
 
