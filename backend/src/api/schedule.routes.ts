@@ -49,6 +49,39 @@ router.post(
 );
 
 router.get(
+  '/counts',
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const user = req.user!;
+      const [scheduledCount, sentCount] = await Promise.all([
+        db.email.count({
+          where: {
+            userId: user.id,
+            status: { in: [EmailStatus.SCHEDULED, EmailStatus.PROCESSING] },
+          },
+        }),
+        db.email.count({
+          where: {
+            userId: user.id,
+            status: { in: [EmailStatus.SENT, EmailStatus.FAILED] },
+          },
+        }),
+      ]);
+
+      res.json({
+        success: true,
+        scheduledCount,
+        sentCount,
+      });
+    } catch (error: any) {
+      logger.error('Failed to get email counts:', { error: error.message });
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+);
+
+router.get(
   '/scheduled',
   requireAuth,
   validateQuery(paginationQuerySchema),

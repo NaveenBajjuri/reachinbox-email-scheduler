@@ -52,6 +52,14 @@ export const api = {
       });
       return res.data;
     },
+    getCounts: async (): Promise<{
+      success: boolean;
+      scheduledCount: number;
+      sentCount: number;
+    }> => {
+      const res = await apiClient.get('/api/emails/counts');
+      return res.data;
+    },
     schedule: async (
       payload: ScheduleEmailPayload
     ): Promise<ScheduleEmailResponse> => {

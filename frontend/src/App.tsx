@@ -133,25 +133,24 @@ export const App: React.FC = () => {
     if (user) {
       if (activeTab === 'scheduled') {
         fetchScheduled(scheduledPage, true);
+        fetchSent(sentPage, false);
       } else {
         fetchSent(sentPage, true);
+        fetchScheduled(scheduledPage, false);
       }
     }
   }, [user, activeTab, scheduledPage, sentPage, fetchScheduled, fetchSent]);
 
-  // Periodic polling for worker state updates
+  // Periodic polling for worker state updates across both scheduled and sent
   useEffect(() => {
     if (!user) return;
     const interval = setInterval(() => {
-      if (activeTab === 'scheduled') {
-        fetchScheduled(scheduledPage, false);
-      } else {
-        fetchSent(sentPage, false);
-      }
+      fetchScheduled(scheduledPage, false);
+      fetchSent(sentPage, false);
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [user, activeTab, scheduledPage, sentPage, fetchScheduled, fetchSent]);
+  }, [user, scheduledPage, sentPage, fetchScheduled, fetchSent]);
 
   const handleLogout = async () => {
     try {
@@ -167,14 +166,12 @@ export const App: React.FC = () => {
     const res = await api.emails.schedule(payload);
     notify(`Scheduled ${res.scheduledCount} email(s) successfully`, 'success');
     fetchScheduled(1, true);
+    fetchSent(1, false);
   };
 
   const handleRefresh = () => {
-    if (activeTab === 'scheduled') {
-      fetchScheduled(scheduledPage, true);
-    } else {
-      fetchSent(sentPage, true);
-    }
+    fetchScheduled(scheduledPage, activeTab === 'scheduled');
+    fetchSent(sentPage, activeTab === 'sent');
     notify('Refreshed email list', 'success');
   };
 
