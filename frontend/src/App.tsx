@@ -18,6 +18,20 @@ export const App: React.FC = () => {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Filtering & Sorting State
+  const [filterOption, setFilterOption] = useState<'all' | 'starred' | 'sent' | 'failed'>('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+
+  // Starred IDs persisted across sessions
+  const [starredIds, setStarredIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('starred_email_ids');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
   const [scheduled, setScheduled] = useState<Email[]>([]);
   const [scheduledTotal, setScheduledTotal] = useState(0);
   const [scheduledPage, setScheduledPage] = useState(1);
@@ -38,6 +52,26 @@ export const App: React.FC = () => {
     setTimeout(() => {
       setToast(null);
     }, 4000);
+  };
+
+  const handleToggleStar = (id: string) => {
+    setStarredIds((prev) => {
+      const next = new Set(prev);
+      const isStarred = next.has(id);
+      if (isStarred) {
+        next.delete(id);
+        notify('Removed from Starred');
+      } else {
+        next.add(id);
+        notify('Added to Starred', 'success');
+      }
+      try {
+        localStorage.setItem('starred_email_ids', JSON.stringify([...next]));
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
   };
 
   const verifySession = useCallback(async () => {
@@ -140,20 +174,70 @@ export const App: React.FC = () => {
     } else {
       fetchSent(sentPage, true);
     }
+    notify('Refreshed email list', 'success');
   };
 
-  // Filter emails based on search query
+  const handleDeleteEmail = async (id: string) => {
+    await api.emails.delete(id);
+    setScheduled((prev) => prev.filter((e) => e.id !== id));
+    setSent((prev) => prev.filter((e) => e.id !== id));
+    if (activeTab === 'scheduled') {
+      setScheduledTotal((t) => Math.max(0, t - 1));
+    } else {
+      setSentTotal((t) => Math.max(0, t - 1));
+    }
+    setSelectedEmail(null);
+  };
+
+  const handleArchiveEmail = (email: Email) => {
+    setScheduled((prev) => prev.filter((e) => e.id !== email.id));
+    setSent((prev) => prev.filter((e) => e.id !== email.id));
+    if (activeTab === 'scheduled') {
+      setScheduledTotal((t) => Math.max(0, t - 1));
+    } else {
+      setSentTotal((t) => Math.max(0, t - 1));
+    }
+    setSelectedEmail(null);
+  };
+
+  const handleTabChange = (tab: 'scheduled' | 'sent') => {
+    setActiveTab(tab);
+    setSearchQuery('');
+    if (tab === 'scheduled' && (filterOption === 'sent' || filterOption === 'failed')) {
+      setFilterOption('all');
+    }
+  };
+
+  // Filter & sort emails
   const displayedEmails = useMemo(() => {
-    const list = activeTab === 'scheduled' ? scheduled : sent;
-    if (!searchQuery.trim()) return list;
-    const q = searchQuery.toLowerCase();
-    return list.filter(
-      (e) =>
-        e.recipient.toLowerCase().includes(q) ||
-        e.subject.toLowerCase().includes(q) ||
-        e.body.toLowerCase().includes(q)
-    );
-  }, [activeTab, scheduled, sent, searchQuery]);
+    let list = activeTab === 'scheduled' ? [...scheduled] : [...sent];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (e) =>
+          e.recipient.toLowerCase().includes(q) ||
+          e.subject.toLowerCase().includes(q) ||
+          e.body.toLowerCase().includes(q)
+      );
+    }
+
+    if (filterOption === 'starred') {
+      list = list.filter((e) => starredIds.has(e.id));
+    } else if (filterOption === 'sent') {
+      list = list.filter((e) => e.status === 'SENT');
+    } else if (filterOption === 'failed') {
+      list = list.filter((e) => e.status === 'FAILED');
+    }
+
+    list.sort((a, b) => {
+      const timeA = new Date(a.scheduledAt || a.createdAt).getTime();
+      const timeB = new Date(b.scheduledAt || b.createdAt).getTime();
+      return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
+    });
+
+    return list;
+  }, [activeTab, scheduled, sent, searchQuery, filterOption, starredIds, sortOrder]);
 
   if (authLoading) {
     return (
@@ -180,10 +264,7 @@ export const App: React.FC = () => {
       <Sidebar
         user={user}
         activeTab={activeTab}
-        onTabChange={(tab) => {
-          setActiveTab(tab);
-          setSearchQuery('');
-        }}
+        onTabChange={handleTabChange}
         onComposeClick={() => setComposeOpen(true)}
         scheduledCount={scheduledTotal}
         sentCount={sentTotal}
@@ -198,6 +279,11 @@ export const App: React.FC = () => {
           onSearchChange={setSearchQuery}
           onRefresh={handleRefresh}
           isLoading={scheduledLoading || sentLoading}
+          activeTab={activeTab}
+          filterOption={filterOption}
+          onFilterChange={setFilterOption}
+          sortOrder={sortOrder}
+          onSortChange={setSortOrder}
         />
 
         {/* Floating Toast Notification */}
@@ -234,6 +320,8 @@ export const App: React.FC = () => {
             }
             onSelectEmail={(email) => setSelectedEmail(email)}
             onComposeClick={() => setComposeOpen(true)}
+            starredIds={starredIds}
+            onToggleStar={handleToggleStar}
           />
         </div>
       </main>
@@ -242,7 +330,13 @@ export const App: React.FC = () => {
       {selectedEmail && (
         <EmailDetailModal
           email={selectedEmail}
+          user={user}
+          isStarred={starredIds.has(selectedEmail.id)}
+          onToggleStar={handleToggleStar}
           onClose={() => setSelectedEmail(null)}
+          onDelete={handleDeleteEmail}
+          onArchive={handleArchiveEmail}
+          onNotify={notify}
         />
       )}
 

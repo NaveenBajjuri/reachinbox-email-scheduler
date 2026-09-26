@@ -62,5 +62,9 @@ export const api = {
       const res = await apiClient.get(`/api/emails/${id}`);
       return res.data;
     },
+    delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+      const res = await apiClient.delete(`/api/emails/${id}`);
+      return res.data;
+    },
   },
 };

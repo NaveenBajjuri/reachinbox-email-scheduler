@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Clock, Star, ExternalLink, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
 import type { Email } from '../types/email';
 
@@ -12,6 +12,8 @@ interface EmailListViewProps {
   onPageChange: (page: number) => void;
   onSelectEmail: (email: Email) => void;
   onComposeClick?: () => void;
+  starredIds: Set<string>;
+  onToggleStar: (id: string) => void;
 }
 
 export const EmailListView: React.FC<EmailListViewProps> = ({
@@ -24,17 +26,12 @@ export const EmailListView: React.FC<EmailListViewProps> = ({
   onPageChange,
   onSelectEmail,
   onComposeClick,
+  starredIds,
+  onToggleStar,
 }) => {
-  const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
-
   const toggleStar = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setStarredIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    onToggleStar(id);
   };
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));

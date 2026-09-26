@@ -5,6 +5,7 @@ import { db } from '../db/client.js';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import { validateBody, validateQuery } from '../middleware/validate.middleware.js';
 import { scheduleEmails } from '../services/scheduler.service.js';
+import { emailQueue } from '../queue/queue.js';
 import { logger } from '../utils/logger.js';
 
 const router = Router();
@@ -150,6 +151,40 @@ router.get(
       res.json({ success: true, email });
     } catch (error: any) {
       logger.error(`Failed to fetch email ${req.params.id}:`, { error: error.message });
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+);
+
+router.delete(
+  '/:id',
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+
+      const email = await db.email.findFirst({
+        where: { id, userId: user.id },
+      });
+
+      if (!email) {
+        res.status(404).json({ success: false, error: 'Email record not found' });
+        return;
+      }
+
+      await db.email.delete({ where: { id } });
+
+      try {
+        const job = await emailQueue.getJob(id);
+        if (job) await job.remove();
+      } catch {
+        // Job might not exist or already completed
+      }
+
+      res.json({ success: true, message: 'Email deleted successfully' });
+    } catch (error: any) {
+      logger.error(`Failed to delete email ${req.params.id}:`, { error: error.message });
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }

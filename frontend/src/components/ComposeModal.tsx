@@ -356,7 +356,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
                 <span>Scheduling...</span>
               </>
             ) : (
-              <span>Send Later</span>
+              <span>Send</span>
             )}
           </button>
 
