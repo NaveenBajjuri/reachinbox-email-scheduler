@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft,
   Paperclip,
@@ -11,7 +11,9 @@ import {
   Italic,
   Underline,
   AlignLeft,
+  AlignCenter,
   List,
+  ListOrdered,
   Quote,
   Code,
   Strikethrough,
@@ -19,9 +21,11 @@ import {
   Redo2,
   Type,
   X,
+  FileText,
+  Image as ImageIcon,
 } from 'lucide-react';
 import readXlsxFile from 'read-excel-file/browser';
-import type { ScheduleEmailPayload, LeadParseResult } from '../types/email';
+import type { ScheduleEmailPayload } from '../types/email';
 import { parseLeads, parseRows } from '../lib/csvParser';
 
 interface ComposeModalProps {
@@ -29,6 +33,15 @@ interface ComposeModalProps {
   onClose: () => void;
   onSchedule: (payload: ScheduleEmailPayload) => Promise<void>;
   defaultSender: string;
+}
+
+interface AttachedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  dataUrl: string;
+  isImage: boolean;
 }
 
 export const ComposeModal: React.FC<ComposeModalProps> = ({
@@ -39,14 +52,9 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 }) => {
   const [sender] = useState(defaultSender || 'oliver.brown@domain.io');
   const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
   const [manualTo, setManualTo] = useState('');
   const [recipientsList, setRecipientsList] = useState<string[]>([]);
-  const [parseResult, setParseResult] = useState<LeadParseResult>({
-    validEmails: [],
-    invalidCount: 0,
-    totalParsed: 0,
-  });
+  const [invalidLeadCount, setInvalidLeadCount] = useState(0);
 
   const [startTime, setStartTime] = useState(() =>
     new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16)
@@ -54,15 +62,46 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   const [delaySeconds, setDelaySeconds] = useState(2);
   const [hourlyLimit, setHourlyLimit] = useState(100);
 
+  const [attachments, setAttachments] = useState<AttachedFile[]>([]);
   const [sendLaterOpen, setSendLaterOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const editorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen && editorRef.current) {
+      editorRef.current.focus();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Format command helper for rich-text editor
+  const executeCommand = (command: string, value: string | undefined = undefined) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand(command, false, value);
+  };
+
+  // Toggle heading or body font size
+  const handleToggleHeading = () => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const parentNode = selection.anchorNode?.parentElement;
+    if (parentNode && parentNode.tagName === 'H3') {
+      document.execCommand('formatBlock', false, '<p>');
+    } else {
+      document.execCommand('formatBlock', false, '<h3>');
+    }
+  };
+
+  // Lead List File Upload (CSV, Excel .xlsx / .xls, TXT)
+  const handleLeadFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -74,8 +113,8 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
         const sheets = await readXlsxFile(file);
         const allRows = sheets.flatMap((s) => s.data);
         const parsed = parseRows(allRows);
-        setParseResult(parsed);
         setRecipientsList(parsed.validEmails);
+        setInvalidLeadCount(parsed.invalidCount);
       } catch {
         setErrorMessage('Failed to read Excel file. Please ensure it is a valid spreadsheet.');
       } finally {
@@ -89,8 +128,8 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
     reader.onload = (event) => {
       const content = event.target?.result as string;
       const parsed = parseLeads(content);
-      setParseResult(parsed);
       setRecipientsList(parsed.validEmails);
+      setInvalidLeadCount(parsed.invalidCount);
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.onerror = () => {
@@ -100,15 +139,45 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
     reader.readAsText(file);
   };
 
+  // File Attachments Upload (Images, PDFs, Documents)
+  const handleAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const isImage = file.type.startsWith('image/');
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: `${Date.now()}-${Math.random()}`,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            dataUrl,
+            isImage,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+  };
+
+  const removeAttachment = (idToRemove: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== idToRemove));
+  };
+
   const handleManualAdd = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       const trimmed = manualTo.trim().replace(/,/g, '');
       if (trimmed && trimmed.includes('@')) {
         if (!recipientsList.includes(trimmed)) {
-          const next = [...recipientsList, trimmed];
-          setRecipientsList(next);
-          setParseResult({ validEmails: next, invalidCount: 0, totalParsed: next.length });
+          setRecipientsList([...recipientsList, trimmed]);
         }
         setManualTo('');
       }
@@ -116,21 +185,23 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   };
 
   const removeRecipient = (indexToRemove: number) => {
-    const next = recipientsList.filter((_, idx) => idx !== indexToRemove);
-    setRecipientsList(next);
-    setParseResult({ validEmails: next, invalidCount: 0, totalParsed: next.length });
+    setRecipientsList(recipientsList.filter((_, idx) => idx !== indexToRemove));
   };
 
-  // Helper for quick schedule presets
   const applyPreset = (hoursFromNow: number) => {
     const d = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
     setStartTime(d.toISOString().slice(0, 16));
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const handleSubmit = async () => {
     setErrorMessage(null);
 
-    // If manual recipient is typed but not tagged yet
     let finalRecipients = [...recipientsList];
     if (manualTo.trim() && manualTo.includes('@')) {
       finalRecipients.push(manualTo.trim());
@@ -141,7 +212,8 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
       return;
     }
 
-    if (!body.trim()) {
+    const rawEditorContent = editorRef.current?.innerHTML || '';
+    if (!rawEditorContent.trim() || rawEditorContent === '<br>') {
       setErrorMessage('Please write email content');
       return;
     }
@@ -157,12 +229,46 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
       return;
     }
 
+    // Append attachments markup if any attachments are included
+    let finalBody = rawEditorContent;
+    if (attachments.length > 0) {
+      const attachmentsMarkup = `
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+          <p style="font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 10px;">
+            Attachments (${attachments.length})
+          </p>
+          <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+            ${attachments
+              .map((att) => {
+                const sizeText = formatFileSize(att.size);
+                if (att.isImage) {
+                  return `
+                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; width: 180px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                      <img src="${att.dataUrl}" alt="${att.name}" style="width: 100%; height: 110px; object-fit: cover; display: block;" />
+                      <div style="padding: 8px 10px;">
+                        <p style="font-size: 11px; font-weight: 600; color: #0f172a; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${att.name}</p>
+                        <p style="font-size: 10px; color: #94a3b8; margin: 2px 0 0 0;">${sizeText}</p>
+                      </div>
+                    </div>`;
+                }
+                return `
+                  <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; width: 180px; background: #f8fafc; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <p style="font-size: 11px; font-weight: 600; color: #0f172a; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📎 ${att.name}</p>
+                    <p style="font-size: 10px; color: #94a3b8; margin: 2px 0 0 0;">${sizeText}</p>
+                  </div>`;
+              })
+              .join('')}
+          </div>
+        </div>`;
+      finalBody += attachmentsMarkup;
+    }
+
     setSubmitting(true);
     try {
       await onSchedule({
         sender: sender.trim(),
         subject: subject.trim(),
-        body: body.trim(),
+        body: finalBody,
         recipients: finalRecipients,
         startTime: startDateTime.toISOString(),
         delayBetweenEmails: Math.max(0, delaySeconds * 1000),
@@ -198,15 +304,32 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 
         {/* Action icons & Send Later button on right */}
         <div className="flex items-center space-x-3 relative">
+          {/* File Attachment Button matching Figma clip icon with dynamic count */}
           <button
             type="button"
-            className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer flex items-center space-x-1"
-            title="Attach file"
+            onClick={() => attachmentInputRef.current?.click()}
+            className={`p-2 rounded-lg transition-colors cursor-pointer flex items-center space-x-1 ${
+              attachments.length > 0
+                ? 'bg-emerald-50 text-[#00A854]'
+                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+            }`}
+            title="Attach files / images"
           >
             <Paperclip className="w-4 h-4" />
-            <span className="text-[10px] text-slate-400">1</span>
+            <span className="text-[10px] font-bold">
+              {attachments.length > 0 ? attachments.length : '1'}
+            </span>
           </button>
+          <input
+            ref={attachmentInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.txt"
+            onChange={handleAttachmentUpload}
+            className="hidden"
+          />
 
+          {/* Send Later Clock Icon */}
           <button
             type="button"
             onClick={() => setSendLaterOpen(!sendLaterOpen)}
@@ -215,7 +338,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
                 ? 'bg-emerald-50 text-[#00A854]'
                 : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
             }`}
-            title="Send Later options"
+            title="Schedule Date & Time"
           >
             <Clock className="w-4 h-4" />
           </button>
@@ -225,7 +348,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-5 py-1.5 border border-[#00A854] text-[#00A854] hover:bg-[#E8F5E9]/60 active:scale-95 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer flex items-center space-x-1.5"
+            className="px-5 py-1.5 border border-[#00A854] text-[#00A854] hover:bg-[#E8F5E9]/60 active:scale-95 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer flex items-center space-x-1.5 shadow-xs"
           >
             {submitting ? (
               <>
@@ -255,33 +378,33 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
                 />
               </div>
 
-              {/* Quick Preset options */}
-              <div className="space-y-1.5 mb-5 text-xs text-slate-600">
+              {/* Quick Preset options matching Figma */}
+              <div className="space-y-1 mb-5 text-xs text-slate-600">
                 <button
                   type="button"
                   onClick={() => applyPreset(12)}
-                  className="w-full text-left py-1 px-2 rounded-md hover:bg-slate-50 cursor-pointer"
+                  className="w-full text-left py-1.5 px-2 rounded-md hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
                 >
                   Tomorrow
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPreset(18)}
-                  className="w-full text-left py-1 px-2 rounded-md hover:bg-slate-50 cursor-pointer"
+                  className="w-full text-left py-1.5 px-2 rounded-md hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
                 >
                   Tomorrow, 10:00 AM
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPreset(19)}
-                  className="w-full text-left py-1 px-2 rounded-md hover:bg-slate-50 cursor-pointer"
+                  className="w-full text-left py-1.5 px-2 rounded-md hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
                 >
                   Tomorrow, 11:00 AM
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPreset(23)}
-                  className="w-full text-left py-1 px-2 rounded-md hover:bg-slate-50 cursor-pointer"
+                  className="w-full text-left py-1.5 px-2 rounded-md hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
                 >
                   Tomorrow, 3:00 PM
                 </button>
@@ -330,7 +453,6 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
         <div className="flex items-start space-x-4 py-2 border-b border-slate-100 text-xs">
           <span className="w-16 pt-1.5 text-slate-400 font-medium">To</span>
           <div className="flex-1 flex flex-wrap items-center gap-1.5">
-            {/* Green pill tags matching media_1790422815150.png */}
             {recipientsList.slice(0, 3).map((email, idx) => (
               <span
                 key={email}
@@ -353,9 +475,9 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
               </span>
             )}
 
-            {parseResult.invalidCount > 0 && (
+            {invalidLeadCount > 0 && (
               <span className="text-[11px] text-slate-400 self-center">
-                ({parseResult.invalidCount} invalid rows ignored)
+                ({invalidLeadCount} invalid rows ignored)
               </span>
             )}
 
@@ -383,7 +505,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
               ref={fileInputRef}
               type="file"
               accept=".csv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              onChange={handleFileUpload}
+              onChange={handleLeadFileUpload}
               className="hidden"
             />
           </div>
@@ -427,56 +549,237 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
           </div>
         </div>
 
+        {/* Attached Files Preview Row */}
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2.5 p-3 bg-slate-50/80 rounded-xl border border-slate-200/70">
+            {attachments.map((att) => (
+              <div
+                key={att.id}
+                className="flex items-center space-x-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 shadow-2xs group"
+              >
+                {att.isImage ? (
+                  <ImageIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                ) : (
+                  <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                )}
+                <span className="max-w-[160px] truncate font-medium">{att.name}</span>
+                <span className="text-[10px] text-slate-400">({formatFileSize(att.size)})</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(att.id)}
+                  className="text-slate-400 hover:text-rose-600 ml-1 cursor-pointer"
+                  title="Remove attachment"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Rich Text Editor Container matching Figma */}
-        <div className="flex-1 flex flex-col bg-[#F9FAFB] rounded-2xl border border-slate-200/70 p-4 min-h-[300px]">
-          {/* Formatting Toolbar */}
-          <div className="flex items-center space-x-1 pb-3 mb-3 border-b border-slate-200/80 text-slate-400 text-xs overflow-x-auto">
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
+        <div className="flex-1 flex flex-col bg-[#F9FAFB] rounded-2xl border border-slate-200/70 p-4 min-h-[320px] focus-within:border-emerald-500/50 transition-colors">
+          {/* Functional Formatting Toolbar */}
+          <div className="flex items-center space-x-1 pb-3 mb-3 border-b border-slate-200/80 text-slate-600 text-xs overflow-x-auto select-none">
+            {/* Undo */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('undo');
+              }}
+              title="Undo (Ctrl+Z)"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <Undo2 className="w-3.5 h-3.5" />
             </button>
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
+
+            {/* Redo */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('redo');
+              }}
+              title="Redo (Ctrl+Y)"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <Redo2 className="w-3.5 h-3.5" />
             </button>
+
             <div className="h-4 w-px bg-slate-200 mx-1" />
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md flex items-center">
+
+            {/* Typography / Heading */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleToggleHeading();
+              }}
+              title="Heading (H3 / Normal)"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <Type className="w-3.5 h-3.5" />
             </button>
+
             <div className="h-4 w-px bg-slate-200 mx-1" />
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
+
+            {/* Bold */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('bold');
+              }}
+              title="Bold (Ctrl+B)"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <Bold className="w-3.5 h-3.5" />
             </button>
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
+
+            {/* Italic */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('italic');
+              }}
+              title="Italic (Ctrl+I)"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <Italic className="w-3.5 h-3.5" />
             </button>
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
+
+            {/* Underline */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('underline');
+              }}
+              title="Underline (Ctrl+U)"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <Underline className="w-3.5 h-3.5" />
             </button>
+
+            {/* Strikethrough */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('strikeThrough');
+              }}
+              title="Strikethrough"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
+              <Strikethrough className="w-3.5 h-3.5" />
+            </button>
+
             <div className="h-4 w-px bg-slate-200 mx-1" />
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
+
+            {/* Align Left */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('justifyLeft');
+              }}
+              title="Align Left"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <AlignLeft className="w-3.5 h-3.5" />
             </button>
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
+
+            {/* Align Center */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('justifyCenter');
+              }}
+              title="Align Center"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
+              <AlignCenter className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="h-4 w-px bg-slate-200 mx-1" />
+
+            {/* Bullet List */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('insertUnorderedList');
+              }}
+              title="Bullet List"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <List className="w-3.5 h-3.5" />
             </button>
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
+
+            {/* Numbered List */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('insertOrderedList');
+              }}
+              title="Numbered List"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
+              <ListOrdered className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Blockquote */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('formatBlock', '<blockquote>');
+              }}
+              title="Quote"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <Quote className="w-3.5 h-3.5" />
             </button>
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
+
+            {/* Code Block */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                executeCommand('formatBlock', '<pre>');
+              }}
+              title="Code Snippet"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer"
+            >
               <Code className="w-3.5 h-3.5" />
             </button>
-            <button type="button" className="p-1.5 hover:text-slate-700 hover:bg-slate-200/50 rounded-md">
-              <Strikethrough className="w-3.5 h-3.5" />
+
+            {/* Attach File Button in Toolbar */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                attachmentInputRef.current?.click();
+              }}
+              title="Attach File or Image"
+              className="p-1.5 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors cursor-pointer ml-auto flex items-center space-x-1 text-[#00A854] font-medium"
+            >
+              <Paperclip className="w-3.5 h-3.5" />
+              <span className="text-[11px]">Attach File</span>
             </button>
           </div>
 
-          {/* Text Area */}
-          <textarea
-            required
-            rows={10}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Type Your Reply..."
-            className="flex-1 w-full bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none resize-none leading-relaxed"
+          {/* Real-time ContentEditable Rich Text Area */}
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            data-placeholder="Type Your Reply..."
+            className="flex-1 w-full bg-transparent text-xs text-slate-800 focus:outline-none overflow-y-auto leading-relaxed min-h-[220px] empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none prose prose-sm max-w-none"
           />
         </div>
       </div>
