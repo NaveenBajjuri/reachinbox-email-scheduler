@@ -287,23 +287,23 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-y-auto animate-in fade-in duration-150">
       {/* Top Header Bar matching Figma media_1790422701412.png */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
-        <div className="flex items-center space-x-3">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
+        <div className="flex items-center space-x-2.5 sm:space-x-3 overflow-hidden flex-1 mr-2">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h2 className="text-base font-semibold text-slate-900">
+          <h2 className="text-sm sm:text-base font-semibold text-slate-900 truncate">
             Compose New Email
           </h2>
         </div>
 
         {/* Action icons & Send Later button on right */}
-        <div className="flex items-center space-x-3 relative">
+        <div className="flex items-center space-x-2 sm:space-x-3 relative shrink-0">
           {/* File Attachment Button matching Figma clip icon with dynamic count */}
           <button
             type="button"
@@ -348,7 +348,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-5 py-1.5 border border-[#00A854] text-[#00A854] hover:bg-[#E8F5E9]/60 active:scale-95 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer flex items-center space-x-1.5 shadow-xs"
+            className="px-4 sm:px-5 py-1.5 border border-[#00A854] text-[#00A854] hover:bg-[#E8F5E9]/60 active:scale-95 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer flex items-center space-x-1.5 shadow-xs"
           >
             {submitting ? (
               <>
@@ -362,7 +362,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 
           {/* Send Later Popover matching Figma media_1790422701412.png */}
           {sendLaterOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl border border-slate-200 shadow-xl p-5 z-50 animate-in zoom-in-95 duration-100">
+            <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-32px)] bg-white rounded-2xl border border-slate-200 shadow-xl p-4 sm:p-5 z-50 animate-in zoom-in-95 duration-100">
               <h4 className="text-sm font-bold text-slate-900 mb-3">Send Later</h4>
 
               <div className="mb-4">
@@ -432,7 +432,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
       </div>
 
       {/* Main Compose Canvas */}
-      <div className="max-w-4xl mx-auto w-full px-6 py-6 flex-1 flex flex-col space-y-4">
+      <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex-1 flex flex-col space-y-4">
         {errorMessage && (
           <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center space-x-2 text-rose-700 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -450,8 +450,22 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
         </div>
 
         {/* To Row with Green Tags & Upload List button matching Figma */}
-        <div className="flex items-start space-x-4 py-2 border-b border-slate-100 text-xs">
-          <span className="w-16 pt-1.5 text-slate-400 font-medium">To</span>
+        <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4 py-2 border-b border-slate-100 text-xs">
+          <div className="flex items-center justify-between sm:w-16 shrink-0">
+            <span className="text-slate-400 font-medium sm:pt-1.5">To</span>
+            {/* Mobile upload button */}
+            <div className="sm:hidden">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center space-x-1 text-xs font-semibold text-[#00A854] hover:text-[#009249] cursor-pointer py-1 px-2.5 rounded-lg bg-emerald-50 transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload List</span>
+              </button>
+            </div>
+          </div>
+
           <div className="flex-1 flex flex-wrap items-center gap-1.5">
             {recipientsList.slice(0, 3).map((email, idx) => (
               <span
@@ -491,8 +505,8 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
             />
           </div>
 
-          {/* Upload List action on right matching Figma */}
-          <div className="shrink-0 pl-2">
+          {/* Upload List action on desktop */}
+          <div className="hidden sm:block shrink-0 pl-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -525,7 +539,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
         </div>
 
         {/* Inline Delay & Hourly Limit matching Figma media_1790422701412.png */}
-        <div className="flex items-center space-x-8 py-2 border-b border-slate-100 text-xs text-slate-600">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:space-x-8 py-2 border-b border-slate-100 text-xs text-slate-600">
           <div className="flex items-center space-x-3">
             <span className="text-slate-500 font-medium">Delay between 2 emails</span>
             <input
@@ -535,6 +549,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
               onChange={(e) => setDelaySeconds(Number(e.target.value))}
               className="w-14 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs font-mono focus:outline-none focus:border-[#00A854]"
             />
+            <span className="text-slate-400 text-[11px]">sec</span>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -546,6 +561,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
               onChange={(e) => setHourlyLimit(Number(e.target.value))}
               className="w-14 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs font-mono focus:outline-none focus:border-[#00A854]"
             />
+            <span className="text-slate-400 text-[11px]">emails/hr</span>
           </div>
         </div>
 

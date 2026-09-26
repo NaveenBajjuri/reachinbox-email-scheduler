@@ -15,6 +15,7 @@ export const App: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'scheduled' | 'sent'>('scheduled');
   const [composeOpen, setComposeOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -269,10 +270,12 @@ export const App: React.FC = () => {
         scheduledCount={scheduledTotal}
         sentCount={sentTotal}
         onLogout={handleLogout}
+        isOpenMobile={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
       {/* Main Workspace Area */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-white">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-white w-full min-w-0">
         {/* Top bar with Search, Filter & Refresh matching Figma */}
         <TopBar
           searchQuery={searchQuery}
@@ -284,6 +287,7 @@ export const App: React.FC = () => {
           onFilterChange={setFilterOption}
           sortOrder={sortOrder}
           onSortChange={setSortOrder}
+          onOpenMobileMenu={() => setMobileMenuOpen(true)}
         />
 
         {/* Floating Toast Notification */}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, RefreshCw, Star, Check, ArrowDownUp, RotateCcw } from 'lucide-react';
+import { Search, Filter, RefreshCw, Star, Check, ArrowDownUp, RotateCcw, Menu } from 'lucide-react';
 
 interface TopBarProps {
   searchQuery: string;
@@ -11,6 +11,7 @@ interface TopBarProps {
   onFilterChange: (opt: 'all' | 'starred' | 'sent' | 'failed') => void;
   sortOrder: 'newest' | 'oldest';
   onSortChange: (order: 'newest' | 'oldest') => void;
+  onOpenMobileMenu?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -23,6 +24,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onFilterChange,
   sortOrder,
   onSortChange,
+  onOpenMobileMenu,
 }) => {
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
@@ -45,7 +47,17 @@ export const TopBar: React.FC<TopBarProps> = ({
   const isFilterActive = filterOption !== 'all' || sortOrder !== 'newest';
 
   return (
-    <div className="flex items-center justify-between gap-4 py-4 px-6 border-b border-slate-100 bg-white">
+    <div className="flex items-center justify-between gap-2.5 sm:gap-4 py-3 sm:py-4 px-4 sm:px-6 border-b border-slate-100 bg-white">
+      {/* Mobile Hamburger Menu Toggle */}
+      <button
+        type="button"
+        onClick={onOpenMobileMenu}
+        className="p-1.5 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg md:hidden transition-colors cursor-pointer shrink-0"
+        title="Open navigation menu"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
       {/* Pill-shaped search bar matching Figma */}
       <div className="relative flex-1 max-w-xl">
         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -56,12 +68,12 @@ export const TopBar: React.FC<TopBarProps> = ({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search by recipient, subject or content..."
-          className="w-full pl-10 pr-4 py-2 bg-[#F4F5F7] border border-transparent hover:border-slate-200 focus:border-[#00A854] focus:bg-white rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none transition-all"
+          className="w-full pl-9 sm:pl-10 pr-4 py-2 bg-[#F4F5F7] border border-transparent hover:border-slate-200 focus:border-[#00A854] focus:bg-white rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none transition-all"
         />
       </div>
 
       {/* Filter and Refresh Icons matching Figma */}
-      <div className="flex items-center space-x-2 text-slate-400 relative" ref={filterRef}>
+      <div className="flex items-center space-x-1.5 sm:space-x-2 text-slate-400 relative shrink-0" ref={filterRef}>
         {/* Filter Button */}
         <button
           type="button"
@@ -81,9 +93,9 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Filter & Sort Popover Dropdown */}
         {filterOpen && (
-          <div className="absolute right-8 top-full mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
+          <div className="absolute right-0 top-full mt-2 w-56 max-w-[calc(100vw-32px)] bg-white rounded-2xl border border-slate-200 shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-              <span className="font-bold text-slate-900">Filter & Sort</span>
+              <span className="font-bold text-slate-900">Filter &amp; Sort</span>
               {isFilterActive && (
                 <button
                   type="button"

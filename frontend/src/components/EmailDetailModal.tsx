@@ -58,23 +58,23 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-y-auto animate-in fade-in duration-100">
       {/* Top Header Bar matching Figma media_1790422690293.png */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
-        <div className="flex items-center space-x-3 overflow-hidden">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
+        <div className="flex items-center space-x-2.5 sm:space-x-3 overflow-hidden flex-1 mr-2">
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
             title="Back to list"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h2 className="text-base font-semibold text-slate-900 truncate">
+          <h2 className="text-sm sm:text-base font-semibold text-slate-900 truncate">
             {email.subject || '(No Subject)'}
           </h2>
         </div>
 
         {/* Top Right Actions matching Figma: Star, Archive, Trash, and User Avatar */}
-        <div className="flex items-center space-x-1.5 text-slate-400">
+        <div className="flex items-center space-x-1 sm:space-x-1.5 text-slate-400 shrink-0">
           {/* Star Button */}
           <button
             type="button"
@@ -115,10 +115,10 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
             <img
               src={user.avatarUrl}
               alt={user.name || 'User'}
-              className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 ml-2 shadow-xs"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover ring-1 ring-slate-200 ml-1 sm:ml-2 shadow-xs shrink-0"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200 flex items-center justify-center font-bold text-xs ml-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200 flex items-center justify-center font-bold text-xs ml-1 sm:ml-2 shrink-0">
               {(user?.name || 'O').charAt(0).toUpperCase()}
             </div>
           )}
@@ -126,28 +126,28 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
       </div>
 
       {/* Main Email Body Canvas */}
-      <div className="max-w-4xl mx-auto w-full px-6 py-8 flex-1">
-        {/* Sender details row */}
-        <div className="flex items-start justify-between mb-8">
+      <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 flex-1 overflow-x-hidden">
+        {/* Sender details row responsive on mobile */}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6 sm:mb-8 pb-5 border-b border-slate-100 sm:border-transparent">
           <div className="flex items-start space-x-3.5">
-            <div className="w-10 h-10 rounded-full bg-[#00A854] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#00A854] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
               {senderInitial}
             </div>
-            <div>
-              <div className="flex items-baseline space-x-2">
+            <div className="overflow-hidden">
+              <div className="flex flex-wrap items-baseline gap-x-2">
                 <span className="font-semibold text-sm text-slate-900">
                   {email.sender.split('@')[0]}
                 </span>
-                <span className="text-xs text-slate-400">&lt;{email.sender}&gt;</span>
+                <span className="text-xs text-slate-400 truncate">&lt;{email.sender}&gt;</span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5 truncate">
                 to {email.recipient}
               </p>
             </div>
           </div>
 
-          <div className="text-right">
-            <span className="text-xs text-slate-400 font-medium">{dateFormatted}</span>
+          <div className="sm:text-right shrink-0">
+            <span className="text-xs text-slate-400 font-medium block">{dateFormatted}</span>
             {email.previewUrl && (
               <div className="mt-1">
                 <a
@@ -174,7 +174,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 
         {/* Email HTML / Text Body */}
         <div
-          className="prose prose-sm max-w-none text-slate-800 leading-relaxed font-sans"
+          className="prose prose-sm max-w-none text-slate-800 leading-relaxed font-sans break-words overflow-x-hidden"
           dangerouslySetInnerHTML={{ __html: email.body }}
         />
       </div>
